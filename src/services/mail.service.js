@@ -6,14 +6,15 @@ class MailService {
         this.transport = nodemailer.createTransport({
             host: process.env.SMTP_HOST,
             port: parseInt(process.env.SMTP_PORT, 10),
-            secure: process.env.SMTP_SECURE === 'true', // usually false for port 587 (TLS), true for 465 (SSL)
+            secure: false, // usually false for port 587 (TLS), true for 465 (SSL)
+            requireTLS: true, // Enforce TLS
             auth: {
                 user: process.env.SMTP_USER,
                 pass: process.env.SMTP_PASSWORD
             }
         });
 
-        // Verify SMTP connection on startup
+        // Verify SMTP connection o startup
         this.transport.verify((err, success) => {
             if (err) {
                 console.error('Email transport error:', err);
