@@ -193,13 +193,14 @@ class PaymentController {
         let KhaltiPaymentResponse;
 
         if (paymentDataObj.paymentMethod === "khalti") {
+          const frontendOrigin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || (process.env.FRONTEND_URL || "http://localhost:5173");
           data = {
             return_url: `${
               process.env.BACKEND_URL || "http://localhost:9005"
-            }/payment-verification/${id}`,
+            }/payment-verification/${id}?frontendUrl=${encodeURIComponent(frontendOrigin)}`,
             purchase_order_id: TaxData._id,
             amount: totalTaxAmount * 100, //Khalti dont accept in rupee so convert it to paisa
-            website_url: process.env.FRONTEND_URL || "http://localhost:5173",
+            website_url: frontendOrigin,
             purchase_order_name: `Bluebook-Tax-${TaxData._id}`,
           };
         }
@@ -303,13 +304,14 @@ class PaymentController {
         });
 
         if (paymentDataObj.paymentMethod === "khalti") {
+          const frontendOrigin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || (process.env.FRONTEND_URL || "http://localhost:5173");
           data = {
             return_url: `${
               process.env.BACKEND_URL || "http://localhost:9005"
-            }/payment-verification/${id}`,
+            }/payment-verification/${id}?frontendUrl=${encodeURIComponent(frontendOrigin)}`,
             purchase_order_id: TaxData._id,
             amount: totalTaxAmount * 100, //Khalti dont accept in rupee so convert it to paisa
-            website_url: process.env.FRONTEND_URL || "http://localhost:5173",
+            website_url: frontendOrigin,
             purchase_order_name: `Bluebook-Tax-${TaxData._id}`,
           };
         }
