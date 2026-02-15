@@ -476,13 +476,14 @@ class ElectricPaymentController {
       }
 
       // Initialize data object for Khalti payment
+      const frontendOrigin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || (process.env.FRONTEND_URL || "http://localhost:5173");
       const data = {
         return_url: `${
           process.env.BACKEND_URL || "http://localhost:9005"
-        }/electric-payment-verification/${electricBluebookId}`,
+        }/electric-payment-verification/${electricBluebookId}?frontendUrl=${encodeURIComponent(frontendOrigin)}`,
         purchase_order_id: electricTax._id,
         amount: payment.amount * 100, //Khalti dont accept in rupee so convert it to paisa
-        website_url: process.env.FRONTEND_URL || "http://localhost:5173",
+        website_url: frontendOrigin,
         purchase_order_name: `ElectricBluebook-Tax-${electricTax._id}`,
       };
 
