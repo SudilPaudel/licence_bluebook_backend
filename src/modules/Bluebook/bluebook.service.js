@@ -45,10 +45,17 @@ class BluebookService {
             throw exception
         }
     }
-    findManyBluebooks = async (filter) => {
+    findManyBluebooks = async (filter, pagination) => {
         try {
-            const bluebooks = await BluebookModel.find(filter);
-            return bluebooks;
+            const { page, limit } = pagination;
+            const skip = (page - 1) * limit;
+
+            const bluebooks = await BluebookModel.find(filter)
+                .skip(skip)
+                .limit(limit);
+                
+            const count = await BluebookModel.countDocuments(filter);
+            return {bluebooks, count};
         } catch (error) {
             throw error;
         }

@@ -53,10 +53,15 @@ class ElectricBluebookService {
             throw exception
         }
     }
-     findManyBluebooks = async (filter) => {
+     findManyBluebooks = async (filter, pagination) => {
             try {
-                const bluebooks = await electricBluebookModel.find(filter);
-                return bluebooks;
+                const { page, limit } = pagination;
+                const skip = (page - 1) * limit;
+                const bluebooks = await electricBluebookModel.find(filter)
+                    .skip(skip)
+                    .limit(limit);
+                const count = await electricBluebookModel.countDocuments(filter);
+                return {bluebooks, count};
             } catch (error) {
                 throw error;
             }
