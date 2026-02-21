@@ -53,14 +53,24 @@ class ElectricBluebookService {
             throw exception
         }
     }
-     findManyBluebooks = async (filter) => {
-            try {
+    findManyBluebooks = async (filter, pagination) => {
+        try {
+            if (pagination && pagination.page && pagination.limit) {
+                const { page, limit } = pagination;
+                const skip = (page - 1) * limit;
+                const bluebooks = await electricBluebookModel.find(filter)
+                    .skip(skip)
+                    .limit(limit);
+                const count = await electricBluebookModel.countDocuments(filter);
+                return { bluebooks, count };
+            } else {
                 const bluebooks = await electricBluebookModel.find(filter);
-                return bluebooks;
-            } catch (error) {
-                throw error;
+                return { bluebooks, count: bluebooks.length };
             }
-        };
+        } catch (error) {
+            throw error;
+        }
+    };
         updateBluebook = async (data, bluebookId) => {
         try {
             const result = await electricBluebookModel.findByIdAndUpdate(bluebookId, {
