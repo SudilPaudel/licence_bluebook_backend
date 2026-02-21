@@ -112,8 +112,12 @@ class ElectricBluebookController {
     getMyBluebook = async (req, res, next) => {
         try {
             const userId = req.authUser._id; // assuming it's added by middleware
-            const page = parseInt(req.query.page) || 1;
-            const limit = parseInt(req.query.limit) || 10;
+            let page = parseInt(req.query.page) || 1;
+            if (page < 1) page = 1;
+
+            let limit = parseInt(req.query.limit) || 10;
+            if (limit < 1) limit = 10;
+
 
             const { bluebooks, count } = await electricBluebookSvc.findManyBluebooks(
                 { createdBy: userId },

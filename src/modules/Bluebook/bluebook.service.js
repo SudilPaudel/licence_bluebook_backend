@@ -47,15 +47,18 @@ class BluebookService {
     }
     findManyBluebooks = async (filter, pagination) => {
         try {
-            const { page, limit } = pagination;
-            const skip = (page - 1) * limit;
-
-            const bluebooks = await BluebookModel.find(filter)
-                .skip(skip)
-                .limit(limit);
-                
-            const count = await BluebookModel.countDocuments(filter);
-            return {bluebooks, count};
+            if (pagination && pagination.page && pagination.limit) {
+                const { page, limit } = pagination;
+                const skip = (page - 1) * limit;
+                const bluebooks = await BluebookModel.find(filter)
+                    .skip(skip)
+                    .limit(limit);
+                const count = await BluebookModel.countDocuments(filter);
+                return { bluebooks, count };
+            } else {
+                const bluebooks = await BluebookModel.find(filter);
+                return { bluebooks, count: bluebooks.length };
+            }
         } catch (error) {
             throw error;
         }
