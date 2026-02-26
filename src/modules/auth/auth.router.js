@@ -13,7 +13,12 @@ authRoute.post('/verify-email-otp', authCtrl.verifyEmailOtp);
 authRoute.post('/resend-otp', authCtrl.resendOtp);
 authRoute.post('/login', bodyValidator(loginDTO), authCtrl.login);
 authRoute.post('/google', authCtrl.google);
-authRoute.post('/google-complete-profile', authCtrl.googleCompleteProfile);
+authRoute.post(
+  '/google-complete-profile',
+  setPath('users'),
+  uploader.single('image'),
+  authCtrl.googleCompleteProfile
+);
 authRoute.get('/profile', authMiddleware, authCtrl.getLoggedIn);
 authRoute.put('/profile', authMiddleware, authCtrl.updateProfile);
 

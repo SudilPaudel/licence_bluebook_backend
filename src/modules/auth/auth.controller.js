@@ -311,7 +311,7 @@ class AuthController {
                 audience: clientId,
             });
             const payload = ticket.getPayload();
-            const { sub: googleId, email, name } = payload;
+            const { sub: googleId, email, name, picture } = payload;
             if (!email) {
                 throw { code: 400, message: "Google account email not found" };
             }
@@ -359,6 +359,7 @@ class AuthController {
                     email,
                     name: name || email.split('@')[0],
                     googleId,
+                    picture: picture || null,
                 },
                 message: "Additional details required to complete registration.",
                 meta: null,
@@ -416,6 +417,8 @@ class AuthController {
                     emailVerified: true,
                     status: 'active',
                     password: bcrypt.hashSync(randomPassword, 10),
+                    // Do not extract or store Google profile photo; user will upload their own passport photo.
+                    image: req.file ? req.file.filename : null,
                 };
                 userDetail = await authSvc.createUser(createData);
             }
