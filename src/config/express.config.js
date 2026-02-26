@@ -58,8 +58,10 @@ app.get('/health', (req, res) => {
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-  let statusCode = error.status || 500;
-  let message = error.message || "Internal Server Error";
+  // Prefer explicit status/code set by controllers/middlewares.
+  // Many modules throw `{ code: 400, message: "..." }`.
+  let statusCode = error?.status || error?.code || 500;
+  let message = error?.message || "Internal Server Error";
   let data = error.data || null;
 
   if (error instanceof Joi.ValidationError) {
@@ -71,7 +73,8 @@ app.use((error, req, res, next) => {
     });
   }
 
-  if (statusCode === 11000) { // Mongo duplicate key error
+  // Mongo duplicate key error (Mongoose puts it on `error.code`).
+  if (error?.code === 11000) {
     statusCode = 400;
     data = {};
     const fields = Object.keys(error.keyPattern);

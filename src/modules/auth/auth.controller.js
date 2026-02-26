@@ -3,6 +3,7 @@ const mailSvc = require('../../services/mail.service')
 const authSvc = require('./auth.service');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 
 class AuthController {
     // Handles user registration, generates OTP, sends verification email, and returns registration info.
@@ -290,6 +291,166 @@ class AuthController {
             next(exception);
         }
     }
+
+    // Google sign-in: verify ID token.
+    // If user exists → login.
+    // If user does not exist → ask frontend to collect additional details (e.g. citizenshipNo).
+    google = async (req, res, next) => {
+        try {
+            const { idToken } = req.body;
+            if (!idToken) {
+                throw { code: 400, message: "Google ID token is required" };
+            }
+            const clientId = process.env.GOOGLE_CLIENT_ID;
+            if (!clientId) {
+                throw { code: 500, message: "Google sign-in is not configured" };
+            }
+            const client = new OAuth2Client(clientId);
+            const ticket = await client.verifyIdToken({
+                idToken,
+                audience: clientId,
+            });
+            const payload = ticket.getPayload();
+            const { sub: googleId, email, name } = payload;
+            if (!email) {
+                throw { code: 400, message: "Google account email not found" };
+            }
+            let userDetail = await authSvc.findOneUser({ email });
+            if (userDetail) {
+                if (userDetail.status === 'pending') {
+                    throw { code: 400, message: "Please verify your email address before logging in." };
+                }
+                if (userDetail.status === 'inactive') {
+                    throw { code: 400, message: "User account is not activated" };
+                }
+                const accessToken = jwt.sign({ sub: userDetail._id }, process.env.JWT_SECRET);
+                const refreshToken = jwt.sign(
+                    { sub: userDetail._id },
+                    process.env.JWT_SECRET,
+                    { expiresIn: '7d' }
+                );
+                return res.json({
+                    success: true,
+                    result: {
+                        detail: {
+                            _id: userDetail._id,
+                            name: userDetail.name,
+                            email: userDetail.email,
+                            citizenshipNo: userDetail.citizenshipNo,
+                            role: userDetail.role,
+                            status: userDetail.status,
+                            image: userDetail.image,
+                        },
+                        tokens: {
+                            accessToken,
+                            refreshToken,
+                        },
+                    },
+                    message: "User logged in successfully",
+                    meta: null,
+                });
+            }
+
+            // New user via Google: ask frontend to collect mandatory extra details
+            return res.json({
+                success: false,
+                requireAdditionalInfo: true,
+                result: {
+                    email,
+                    name: name || email.split('@')[0],
+                    googleId,
+                },
+                message: "Additional details required to complete registration.",
+                meta: null,
+            });
+        } catch (exception) {
+            next(exception);
+        }
+    };
+
+    // Completes Google-based registration by collecting mandatory extra details (e.g. citizenshipNo)
+    // and then creating the user + returning JWT tokens.
+    googleCompleteProfile = async (req, res, next) => {
+        try {
+            const { idToken, citizenshipNo } = req.body;
+
+            if (!idToken) {
+                throw { code: 400, message: "Google ID token is required" };
+            }
+            if (!citizenshipNo) {
+                throw { code: 400, message: "Citizenship number is required" };
+            }
+
+            const clientId = process.env.GOOGLE_CLIENT_ID;
+            if (!clientId) {
+                throw { code: 500, message: "Google sign-in is not configured" };
+            }
+
+            const client = new OAuth2Client(clientId);
+            const ticket = await client.verifyIdToken({
+                idToken,
+                audience: clientId,
+            });
+            const payload = ticket.getPayload();
+            const { email, name } = payload || {};
+
+            if (!email) {
+                throw { code: 400, message: "Google account email not found" };
+            }
+
+            // If user already exists (race condition or manual registration), just log them in.
+            let userDetail = await authSvc.findOneUser({ email });
+            if (userDetail) {
+                if (userDetail.status === 'pending') {
+                    throw { code: 400, message: "Please verify your email address before logging in." };
+                }
+                if (userDetail.status === 'inactive') {
+                    throw { code: 400, message: "User account is not activated" };
+                }
+            } else {
+                const randomPassword = require('crypto').randomBytes(24).toString('hex');
+                const createData = {
+                    name: name || email.split('@')[0],
+                    email,
+                    citizenshipNo,
+                    emailVerified: true,
+                    status: 'active',
+                    password: bcrypt.hashSync(randomPassword, 10),
+                };
+                userDetail = await authSvc.createUser(createData);
+            }
+
+            const accessToken = jwt.sign({ sub: userDetail._id }, process.env.JWT_SECRET);
+            const refreshToken = jwt.sign(
+                { sub: userDetail._id },
+                process.env.JWT_SECRET,
+                { expiresIn: '7d' }
+            );
+
+            res.json({
+                success: true,
+                result: {
+                    detail: {
+                        _id: userDetail._id,
+                        name: userDetail.name,
+                        email: userDetail.email,
+                        citizenshipNo: userDetail.citizenshipNo,
+                        role: userDetail.role,
+                        status: userDetail.status,
+                        image: userDetail.image,
+                    },
+                    tokens: {
+                        accessToken,
+                        refreshToken,
+                    },
+                },
+                message: "Account created and logged in successfully",
+                meta: null,
+            });
+        } catch (exception) {
+            next(exception);
+        }
+    };
 
     // Returns the profile of the currently logged-in user.
     getLoggedIn = async (req, res, next) => {
