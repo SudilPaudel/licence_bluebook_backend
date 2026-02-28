@@ -408,15 +408,16 @@ class BluebookController {
     // Fetches all bluebooks for admin, with meta statistics for pending and verified.
     getAllBluebooks = async (req, res, next) => {
         try {
-            const result = await bluebookSvc.findManyBluebooks({});
+            const { bluebooks, count } = await bluebookSvc.findManyBluebooks({});
+            const all = bluebooks || [];
             
             res.status(200).json({
-                result: result,
+                result: all,
                 message: "All bluebooks fetched successfully",
                 meta: {
-                    total: result.length,
-                    pending: result.filter(bb => bb.status === 'pending').length,
-                    verified: result.filter(bb => bb.status === 'verified').length
+                    total: count,
+                    pending: all.filter(bb => bb.status === 'pending').length,
+                    verified: all.filter(bb => bb.status === 'verified').length
                 }
             });
         } catch (exception) {
@@ -427,13 +428,14 @@ class BluebookController {
     // Fetches all bluebooks with status 'pending' for admin review.
     getPendingBluebooks = async (req, res, next) => {
         try {
-            const result = await bluebookSvc.findManyBluebooks({ status: 'pending' });
+            const { bluebooks, count } = await bluebookSvc.findManyBluebooks({ status: 'pending' });
+            const pending = bluebooks || [];
             
             res.status(200).json({
-                result: result,
+                result: pending,
                 message: "Pending bluebooks fetched successfully",
                 meta: {
-                    total: result.length
+                    total: count
                 }
             });
         } catch (exception) {
@@ -444,13 +446,14 @@ class BluebookController {
     // Fetches all bluebooks with status 'verified' for admin.
     getVerifiedBluebooks = async (req, res, next) => {
         try {
-            const result = await bluebookSvc.findManyBluebooks({ status: 'verified' });
+            const { bluebooks, count } = await bluebookSvc.findManyBluebooks({ status: 'verified' });
+            const verified = bluebooks || [];
             
             res.status(200).json({
-                result: result,
+                result: verified,
                 message: "Verified bluebooks fetched successfully",
                 meta: {
-                    total: result.length
+                    total: count
                 }
             });
         } catch (exception) {

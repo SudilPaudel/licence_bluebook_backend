@@ -406,15 +406,16 @@ class ElectricBluebookController {
     }
     getAllBluebooks = async (req, res, next) => {
         try {
-            const result = await electricBluebookSvc.findManyBluebooks({});
+            const { bluebooks, count } = await electricBluebookSvc.findManyBluebooks({});
+            const all = bluebooks || [];
 
             res.status(200).json({
-                result: result,
+                result: all,
                 message: "All bluebooks fetched successfully",
                 meta: {
-                    total: result.length,
-                    pending: result.filter(bb => bb.status === 'pending').length,
-                    verified: result.filter(bb => bb.status === 'verified').length
+                    total: count,
+                    pending: all.filter(bb => bb.status === 'pending').length,
+                    verified: all.filter(bb => bb.status === 'verified').length
                 }
             });
         } catch (exception) {
@@ -422,37 +423,39 @@ class ElectricBluebookController {
         }
     }
     getPendingBluebooks = async (req, res, next) => {
-            try {
-                const result = await electricBluebookSvc.findManyBluebooks({ status: 'pending' });
-                
-                res.status(200).json({
-                    result: result,
-                    message: "Pending bluebooks fetched successfully",
-                    meta: {
-                        total: result.length
-                    }
-                });
-            } catch (exception) {
-                next(exception);
-            }
+        try {
+            const { bluebooks, count } = await electricBluebookSvc.findManyBluebooks({ status: 'pending' });
+            const pending = bluebooks || [];
+            
+            res.status(200).json({
+                result: pending,
+                message: "Pending bluebooks fetched successfully",
+                meta: {
+                    total: count
+                }
+            });
+        } catch (exception) {
+            next(exception);
         }
+    }
     
-        // Fetches all bluebooks with status 'verified' for admin.
-        getVerifiedBluebooks = async (req, res, next) => {
-            try {
-                const result = await electricBluebookSvc.findManyBluebooks({ status: 'verified' });
-                
-                res.status(200).json({
-                    result: result,
-                    message: "Verified bluebooks fetched successfully",
-                    meta: {
-                        total: result.length
-                    }
-                });
-            } catch (exception) {
-                next(exception);
-            }
+    // Fetches all bluebooks with status 'verified' for admin.
+    getVerifiedBluebooks = async (req, res, next) => {
+        try {
+            const { bluebooks, count } = await electricBluebookSvc.findManyBluebooks({ status: 'verified' });
+            const verified = bluebooks || [];
+            
+            res.status(200).json({
+                result: verified,
+                message: "Verified bluebooks fetched successfully",
+                meta: {
+                    total: count
+                }
+            });
+        } catch (exception) {
+            next(exception);
         }
+    }
     
         // Rejects a pending bluebook by ID and updates its status to 'rejected'.
         rejectBluebook = async (req, res, next) => {
