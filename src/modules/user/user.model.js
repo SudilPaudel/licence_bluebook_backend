@@ -67,6 +67,14 @@ citizenshipNo:{
         type: Date,
         default: null
     },
+    resetOtp: {
+        type: String,
+        default: null
+    },
+    resetOtpExpiresAt: {
+        type: Date,
+        default: null
+    },
     address:{
         permanentAddress: AddressSchema,
         temporaryAddress: AddressSchema
