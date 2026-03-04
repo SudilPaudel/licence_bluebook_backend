@@ -798,31 +798,33 @@ class AuthController {
 
             const user = await authSvc.findOneUser({ email });
             if (!user) {
-                // For security, respond with success even if user doesn't exist
+                // For security, always respond with success
                 return res.json({
-                    message: "If an account with this email exists, a reset link has been sent.",
+                    message: "If an account with this email exists, a reset code has been sent.",
                     meta: null
                 });
             }
 
-            // Generate a reset token (valid for 1 hour)
-            const resetToken = require('crypto').randomBytes(32).toString('hex');
-            const resetTokenExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+            // generate 6-digit OTP (numeric)
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const otpExpiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
 
             await authSvc.updateUser({
-                resetToken,
-                resetTokenExpiresAt
+                resetOtp: otp,
+                resetOtpExpiresAt: otpExpiresAt,
+                // clear any existing token just in case
+                resetToken: null,
+                resetTokenExpiresAt: null
             }, user._id);
 
-            // Send reset email
-            const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+            // send email with OTP instead of link
             await mailSvc.sendEmail(
                 user.email,
-                "Password Reset Request - Bluebook Renewal System",
+                "Password Reset Code - Bluebook Renewal System",
                 `Dear ${user.name || 'User'},<br/>
-                <p>You requested a password reset. Click the link below to reset your password:</p>
-                <p><a href="${resetLink}">${resetLink}</a></p>
-                <p>This link is valid for 1 hour.</p>
+                <p>You requested a password reset. Your verification code is:</p>
+                <h2 style="font-size:24px; color:#007bff;">${otp}</h2>
+                <p>This code is valid for 1 hour.</p>
                 <p>If you did not request this, please ignore this email.</p>
                 <p>Thank you!</p>
                 <p>Bluebook Renewal System Team</p>
@@ -830,34 +832,69 @@ class AuthController {
             );
 
             res.json({
-                message: "If an account with this email exists, a reset link has been sent.",
+                message: "If an account with this email exists, a reset code has been sent.",
                 meta: null
             });
         } catch (exception) {
             next(exception);
         }
     }
+    verifyResetOtp = async (req, res, next) => {
+        try {
+            const { email, otp } = req.body;
+            if (!email || !otp) {
+                throw { code: 400, message: "Email and OTP are required" };
+            }
+            const user = await authSvc.findOneUser({
+                email,
+                resetOtp: otp,
+                resetOtpExpiresAt: { $gt: new Date() }
+            });
+            if (!user) {
+                throw { code: 400, message: "Invalid or expired OTP" };
+            }
+            res.json({ success: true, message: "OTP verified" });
+        } catch (e) {
+            next(e);
+        }
+    }
+
     resetPassword = async (req, res, next) => {
         try {
-            const { token, newPassword } = req.body;
-            if (!token || !newPassword) {
-                throw { code: 400, message: "Token and new password are required" };
+            const { token, otp, email, newPassword } = req.body;
+            if (!newPassword) {
+                throw { code: 400, message: "New password is required" };
             }
 
-            // Find user by reset token and check expiration
-            const user = await authSvc.findOneUser({
-                resetToken: token,
-                resetTokenExpiresAt: { $gt: new Date() }
-            });
-
-            if (!user) {
-                throw { code: 400, message: "Invalid or expired reset token" };
+            let user;
+            if (token) {
+                // token flow
+                user = await authSvc.findOneUser({
+                    resetToken: token,
+                    resetTokenExpiresAt: { $gt: new Date() }
+                });
+                if (!user) {
+                    throw { code: 400, message: "Invalid or expired reset token" };
+                }
+            } else if (otp && email) {
+                user = await authSvc.findOneUser({
+                    email,
+                    resetOtp: otp,
+                    resetOtpExpiresAt: { $gt: new Date() }
+                });
+                if (!user) {
+                    throw { code: 400, message: "Invalid or expired OTP" };
+                }
+            } else {
+                throw { code: 400, message: "Reset token or OTP (with email) is required" };
             }
 
-            // Update password and clear reset token
+            // Update password and clear reset fields
             user.password = bcrypt.hashSync(newPassword, 10);
             user.resetToken = null;
             user.resetTokenExpiresAt = null;
+            user.resetOtp = null;
+            user.resetOtpExpiresAt = null;
             await user.save();
 
             res.json({

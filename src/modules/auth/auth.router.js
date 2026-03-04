@@ -27,6 +27,8 @@ authRoute.delete('/admin/users/:id', authMiddleware, allowRole('admin'), authCtr
 authRoute.post('/admin/create', authMiddleware, allowRole('admin'), authCtrl.createAdmin);
 // ...existing code...
 authRoute.post('/forgot-password', authCtrl.forgotPassword);
+// OTP verification step used by frontend when reset code workflow is enabled
+authRoute.post('/verify-reset-otp', authCtrl.verifyResetOtp);
 authRoute.post('/reset-password', authCtrl.resetPassword);
 // ...existing code...
 
