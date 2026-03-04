@@ -1,4 +1,5 @@
 require("dotenv").config();
+const axios = require('axios');
 const mailSvc = require('../../services/mail.service')
 const authSvc = require('./auth.service');
 const bcrypt = require('bcryptjs');
@@ -293,26 +294,56 @@ class AuthController {
         }
     }
 
-    // Google sign-in: verify ID token.
+    // Google sign-in: verify ID token or access token.
     // If user exists → login.
     // If user does not exist → ask frontend to collect additional details (e.g. citizenshipNo).
     google = async (req, res, next) => {
         try {
-            const { idToken } = req.body;
-            if (!idToken) {
-                throw { code: 400, message: "Google ID token is required" };
+            const { idToken, accessToken } = req.body;
+            
+            // Accept either idToken or accessToken
+            const token = idToken || accessToken;
+            if (!token) {
+                throw { code: 400, message: "Google ID token or access token is required" };
             }
+            
             const clientId = process.env.GOOGLE_CLIENT_ID;
             if (!clientId) {
                 throw { code: 500, message: "Google sign-in is not configured" };
             }
-            const client = new OAuth2Client(clientId);
-            const ticket = await client.verifyIdToken({
-                idToken,
-                audience: clientId,
-            });
-            const payload = ticket.getPayload();
-            const { sub: googleId, email, name } = payload;
+
+            let payload;
+            let googleId;
+            let email;
+            let name;
+
+            if (idToken) {
+                // Use ID token verification
+                const client = new OAuth2Client(clientId);
+                const ticket = await client.verifyIdToken({
+                    idToken,
+                    audience: clientId,
+                });
+                payload = ticket.getPayload();
+                googleId = payload.sub;
+                email = payload.email;
+                name = payload.name;
+            } else if (accessToken) {
+                // Use access token to get user info from Google API
+                const googleUserInfoResponse = await axios.get(
+                    'https://www.googleapis.com/oauth2/v3/userinfo',
+                    {
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`
+                        }
+                    }
+                );
+                const userInfo = googleUserInfoResponse.data;
+                googleId = userInfo.sub;
+                email = userInfo.email;
+                name = userInfo.name;
+            }
+
             if (!email) {
                 throw { code: 400, message: "Google account email not found" };
             }
@@ -373,10 +404,12 @@ class AuthController {
     // and then creating the user + returning JWT tokens.
     googleCompleteProfile = async (req, res, next) => {
         try {
-            const { idToken, citizenshipNo } = req.body;
+            const { idToken: incomingIdToken, accessToken: incomingAccessToken, citizenshipNo } = req.body;
 
-            if (!idToken) {
-                throw { code: 400, message: "Google ID token is required" };
+            // Accept either idToken or accessToken
+            const incomingToken = incomingIdToken || incomingAccessToken;
+            if (!incomingToken) {
+                throw { code: 400, message: "Google ID token or access token is required" };
             }
             if (!citizenshipNo) {
                 throw { code: 400, message: "Citizenship number is required" };
@@ -391,13 +424,33 @@ class AuthController {
                 throw { code: 500, message: "Google sign-in is not configured" };
             }
 
-            const client = new OAuth2Client(clientId);
-            const ticket = await client.verifyIdToken({
-                idToken,
-                audience: clientId,
-            });
-            const payload = ticket.getPayload();
-            const { email, name } = payload || {};
+            let email;
+            let name;
+
+            if (incomingIdToken) {
+                // Use ID token verification
+                const client = new OAuth2Client(clientId);
+                const ticket = await client.verifyIdToken({
+                    idToken: incomingIdToken,
+                    audience: clientId,
+                });
+                const payload = ticket.getPayload();
+                email = payload?.email;
+                name = payload?.name;
+            } else if (incomingAccessToken) {
+                // Use access token to get user info from Google API
+                const googleUserInfoResponse = await axios.get(
+                    'https://www.googleapis.com/oauth2/v3/userinfo',
+                    {
+                        headers: {
+                            Authorization: `Bearer ${incomingAccessToken}`
+                        }
+                    }
+                );
+                const userInfo = googleUserInfoResponse.data;
+                email = userInfo.email;
+                name = userInfo.name;
+            }
 
             if (!email) {
                 throw { code: 400, message: "Google account email not found" };
