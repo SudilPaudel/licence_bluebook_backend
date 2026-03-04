@@ -4,6 +4,7 @@ const authSvc = require('./auth.service');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
+const { citizenshipNoSchema } = require('./auth.dto');
 
 class AuthController {
     // Handles user registration, generates OTP, sends verification email, and returns registration info.
@@ -380,6 +381,10 @@ class AuthController {
             if (!citizenshipNo) {
                 throw { code: 400, message: "Citizenship number is required" };
             }
+            const { error } = citizenshipNoSchema.validate(citizenshipNo);
+            if (error) {
+                throw { code: 400, message: error.message || "Citizenship number must be exactly 11 numeric digits" };
+            }
 
             const clientId = process.env.GOOGLE_CLIENT_ID;
             if (!clientId) {
@@ -417,6 +422,9 @@ class AuthController {
                     status: 'active',
                     password: bcrypt.hashSync(randomPassword, 10),
                 };
+                if (req.file) {
+                    createData.image = req.file.filename;
+                }
                 userDetail = await authSvc.createUser(createData);
             }
 
@@ -487,6 +495,11 @@ class AuthController {
                 if (existingUser && existingUser._id.toString() !== userId.toString()) {
                     throw { code: 400, message: "Email is already taken by another user" }
                 }
+            }
+
+            const { error: citizenshipError } = citizenshipNoSchema.validate(citizenshipNo);
+            if (citizenshipError) {
+                throw { code: 400, message: citizenshipError.message || "Citizenship number must be exactly 11 numeric digits" };
             }
 
             // Check if citizenship number is already taken by another user
@@ -627,6 +640,11 @@ class AuthController {
                 throw { code: 400, message: "Invalid status. Must be 'active' or 'inactive'" };
             }
 
+            const { error: citizenshipError } = citizenshipNoSchema.validate(citizenshipNo);
+            if (citizenshipError) {
+                throw { code: 400, message: citizenshipError.message || "Citizenship number must be exactly 11 numeric digits" };
+            }
+
             // Check if user exists
             const existingUser = await authSvc.findOneUser({ _id: id });
             if (!existingUser) {
@@ -705,6 +723,10 @@ class AuthController {
             const { name, email, citizenshipNo, password } = req.body;
             if (!name || !email || !citizenshipNo || !password) {
                 return res.status(400).json({ message: "All fields are required" });
+            }
+            const { error: citizenshipError } = citizenshipNoSchema.validate(citizenshipNo);
+            if (citizenshipError) {
+                throw { code: 400, message: citizenshipError.message || "Citizenship number must be exactly 11 numeric digits" };
             }
             // Check for existing user
             const existing = await require('../user/user.model').findOne({ email });
