@@ -64,7 +64,7 @@ class AuthService{
     // Updates a user's data by user ID.
     updateUser = async (data, userId)=>{
         try{
-            const result = await UserModel.findByIdAndUpdate(userId, {$set: data})
+            const result = await UserModel.findByIdAndUpdate(userId, {$set: data}, { new: true })
             return result;
         }catch(exception){
             throw exception;

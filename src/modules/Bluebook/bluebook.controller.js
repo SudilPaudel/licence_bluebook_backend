@@ -8,6 +8,15 @@ class BluebookController {
     // Handles creation of a new bluebook record using request data and authenticated user.
     createBluebook = async (req, res, next) => {
         try {
+            // Check if user has verified KYC
+            const user = await authSvc.findOneUser({ _id: req.authUser._id });
+            if (!user) {
+                throw { code: 404, message: 'User not found' };
+            }
+            if (user.kycStatus !== 'verified') {
+                throw { code: 403, message: 'KYC verification required before registering a bluebook. Please complete your KYC first.' };
+            }
+            
             const data = bluebookSvc.transformCreateData(req);
             const bluebooknewData = {
                 ...data,

@@ -10,6 +10,7 @@ const electricPaymentRouter = require('../modules/ElectricPayment/electricPaymen
 const newsRouter = require('../modules/news/news.router');
 const marqueeRouter = require('../modules/marquee/marquee.router');
 const electricBlueBookRouter = require('../modules/ElectricBluebook/electricBluebook.router');
+const kycRouter = require('../modules/kyc/kyc.router');
 
 mainRouter.use('/auth', authRouter);
 mainRouter.use('/bluebook', blueBookRouter);
@@ -19,6 +20,7 @@ mainRouter.use('/payment', paymentRouter);
 mainRouter.use('/electric-payment', electricPaymentRouter);
 mainRouter.use('/news', newsRouter);
 mainRouter.use('/marquee', marqueeRouter);
+mainRouter.use('/kyc', kycRouter);
 
 // Serve React app for payment verification route
 mainRouter.get("/payment-verification/:id", (req, res) => {

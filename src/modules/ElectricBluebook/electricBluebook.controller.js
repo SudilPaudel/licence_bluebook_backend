@@ -1,4 +1,5 @@
 const electricBluebookSvc = require("./electricBluebook.service");
+const authSvc = require("../auth/auth.service");
 const PDFDocument = require('pdfkit');
 
 require("dotenv").config();
@@ -6,7 +7,15 @@ require("dotenv").config();
 class ElectricBluebookController {
     createBluebook = async (req, res, next) => {
         try {
-        
+            // Check if user has verified KYC
+            const user = await authSvc.findOneUser({ _id: req.authUser._id });
+            if (!user) {
+                throw { code: 404, message: 'User not found' };
+            }
+            if (user.kycStatus !== 'verified') {
+                throw { code: 403, message: 'KYC verification required before registering an electric bluebook. Please complete your KYC first.' };
+            }
+            
             const data = electricBluebookSvc.transformCreateData(req);
             const bluebooknewData = {
                 ...data,
