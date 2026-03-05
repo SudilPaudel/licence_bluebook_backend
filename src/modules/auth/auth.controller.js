@@ -275,7 +275,9 @@ class AuthController {
                             citizenshipNo: userDetail.citizenshipNo,
                             role: userDetail.role,
                             status: userDetail.status,
-                            image: userDetail.image
+                            image: userDetail.image,
+                            kycStatus: userDetail.kycStatus || 'none',
+                            kycDetails: userDetail.kycDetails || null
                         },
                         tokens: {
                             accessToken: accessToken,
@@ -372,6 +374,8 @@ class AuthController {
                             role: userDetail.role,
                             status: userDetail.status,
                             image: userDetail.image,
+                            kycStatus: userDetail.kycStatus || 'none',
+                            kycDetails: userDetail.kycDetails || null
                         },
                         tokens: {
                             accessToken,
@@ -499,6 +503,8 @@ class AuthController {
                         role: userDetail.role,
                         status: userDetail.status,
                         image: userDetail.image,
+                        kycStatus: userDetail.kycStatus || 'none',
+                        kycDetails: userDetail.kycDetails || null
                     },
                     tokens: {
                         accessToken,
@@ -524,7 +530,9 @@ class AuthController {
                 citizenshipNo: loggedInUser.citizenshipNo,
                 role: loggedInUser.role,
                 status: loggedInUser.status,
-                image: loggedInUser?.image
+                image: loggedInUser?.image,
+                kycStatus: loggedInUser.kycStatus || 'none',
+                kycDetails: loggedInUser.kycDetails || null
             }
             res.json({
                 result: response,
@@ -550,13 +558,14 @@ class AuthController {
                 }
             }
 
-            const { error: citizenshipError } = citizenshipNoSchema.validate(citizenshipNo);
-            if (citizenshipError) {
-                throw { code: 400, message: citizenshipError.message || "Citizenship number must be exactly 11 numeric digits" };
-            }
-
-            // Check if citizenship number is already taken by another user
+            // Only validate citizenship number if it's being changed
             if (citizenshipNo !== req.authUser.citizenshipNo) {
+                const { error: citizenshipError } = citizenshipNoSchema.validate(citizenshipNo);
+                if (citizenshipError) {
+                    throw { code: 400, message: citizenshipError.message || "Citizenship number must be exactly 11 numeric digits" };
+                }
+
+                // Check if citizenship number is already taken by another user
                 const existingUser = await authSvc.findOneUser({ citizenshipNo: citizenshipNo });
                 if (existingUser && existingUser._id.toString() !== userId.toString()) {
                     throw { code: 400, message: "Citizenship number is already taken by another user" }
@@ -566,7 +575,11 @@ class AuthController {
             const updateData = {
                 name: name,
                 email: email,
-                citizenshipNo: citizenshipNo
+                citizenshipNo: citizenshipNo,
+                kycDetails: {
+                    ...req.authUser.kycDetails,
+                    citizenshipNo: citizenshipNo
+                }
             };
 
             const updatedUser = await authSvc.updateUser(updateData, userId);
@@ -578,7 +591,9 @@ class AuthController {
                 citizenshipNo: updatedUser.citizenshipNo,
                 role: updatedUser.role,
                 status: updatedUser.status,
-                image: updatedUser?.image
+                image: updatedUser?.image,
+                kycStatus: updatedUser.kycStatus || 'none',
+                kycDetails: updatedUser.kycDetails || null
             }
 
             res.json({

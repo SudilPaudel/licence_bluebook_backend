@@ -88,6 +88,36 @@ citizenshipNo:{
         type: mongoose.Types.ObjectId,
         ref: "User",
         default: null
+    },
+    // KYC Fields
+    kycStatus: {
+        type: String,
+        enum: ['none', 'pending', 'verified', 'rejected'],
+        default: 'none'
+    },
+    kycDetails: {
+        fullName: String,
+        fullNameNepali: String,
+        dateOfBirth: String,
+        gender: String,
+        nationality: String,
+        province: String,
+        district: String,
+        municipality: String,
+        wardNo: String,
+        tole: String,
+        citizenshipNo: String,
+        citizenshipIssueDate: String,
+        citizenshipIssueDistrict: String,
+        fatherName: String,
+        motherName: String,
+        grandfatherName: String,
+        frontImage: String,
+        backImage: String,
+        submittedAt: Date,
+        verifiedAt: Date,
+        rejectedAt: Date,
+        rejectionReason: String
     }
 },
 {
