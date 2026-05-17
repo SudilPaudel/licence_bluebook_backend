@@ -6,6 +6,7 @@ const ElectricPaymentModel = require("./electricPayment.model");
 const axios = require("axios");
 const mailSvc = require("../../services/mail.service");
 const crypto = require("crypto");
+const { calculateElectricTax } = require("../../utils/algorithm");
 
 require("dotenv").config();
 
@@ -117,80 +118,10 @@ class ElectricPaymentController {
         return;
       }
 
-      //Days left logic
-      const now = new Date(); // current date
-      const taxExpireDate = new Date(electricBluebookData.taxExpireDate); // parse the ISO string
-
-      const diffInMs = taxExpireDate.getTime() - now.getTime(); // time difference in ms
-      const daysLeft = Math.ceil(diffInMs / (1000 * 60 * 60 * 24)); // convert ms to days
-
-      let baseTax;
-      let renewalCharge;
-      
-              // Calculate tax based on vehicle type and battery capacity
-        if (electricBluebookData.vehicleType === "Motorcycle" || electricBluebookData.vehicleType === "motorcycle" || electricBluebookData.vehicleType === "MC") {
-        renewalCharge = 300;
-        const batteryCapacity = Number(electricBluebookData.vehicleBatteryCapacity || 0);
-
-        
-        if (batteryCapacity <= 50) {
-          baseTax = 1000;
-        } else if (batteryCapacity <= 350) {
-          baseTax = 1500;
-        } else if (batteryCapacity <= 1000) {
-          baseTax = 2000;
-        } else if (batteryCapacity <= 1500) {
-          baseTax = 2500;
-        } else {
-          baseTax = 3000; // 1501 and higher
-        }
-
-      } else if (electricBluebookData.vehicleType === "Car" || electricBluebookData.vehicleType === "car" || electricBluebookData.vehicleType === "CAR") {
-        renewalCharge = 500;
-        const batteryCapacity = Number(electricBluebookData.vehicleBatteryCapacity || 0);
-
-        
-        if (batteryCapacity <= 10) {
-          baseTax = 5000;
-        } else if (batteryCapacity <= 50) {
-          baseTax = 5000;
-        } else if (batteryCapacity <= 125) {
-          baseTax = 15000;
-        } else if (batteryCapacity <= 200) {
-          baseTax = 20000;
-        } else {
-          baseTax = 30000; // 201 and higher
-        }
-
-      } else {
-
-        // Default to Motorcycle if unknown
-        renewalCharge = 300;
-        const batteryCapacity = Number(electricBluebookData.vehicleBatteryCapacity || 0);
-        if (batteryCapacity <= 50) {
-          baseTax = 1000;
-        } else if (batteryCapacity <= 350) {
-          baseTax = 1500;
-        } else if (batteryCapacity <= 1000) {
-          baseTax = 2000;
-        } else if (batteryCapacity <= 1500) {
-          baseTax = 2500;
-        } else {
-          baseTax = 3000;
-        }
-      }
+      const { paymentMethod } = req.body;
+      const { baseTax, renewalCharge, fineAmount, oldVehicleTax, totalTaxAmount, daysLeft } = calculateElectricTax(electricBluebookData);
 
       let data;
-      let totalTaxAmount = 0;
-
-      const today = new Date();
-      const registrationDate = new Date(electricBluebookData.vehicleRegistrationDate);
-
-      // Calculate year difference
-      const vehicleAgeInYears =
-        today.getFullYear() - registrationDate.getFullYear();
-      let oldVehicleTax = 0;
-      const { paymentMethod } = req.body;
 
       // Check for existing pending payments for this user and electric bluebook
       const existingPayment = await ElectricPaymentModel.findOne({
@@ -225,21 +156,11 @@ class ElectricPaymentController {
       paymentDataObj.otp = otp;
       paymentDataObj.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
 
-      //Conditions for the tax
-      
       if (daysLeft < 30 && daysLeft > 1) {
-        totalTaxAmount = baseTax + renewalCharge;
-        if (vehicleAgeInYears >= 15) {
-          // 10% extra tax for old vehicles
-          oldVehicleTax = 0.1 * totalTaxAmount;
-          totalTaxAmount += oldVehicleTax;
-        }
-
-
         
         const ElectricTaxData = await ElectricTaxModel.create({
-          baseTax: baseTax,
-          renewalCharge: renewalCharge,
+          baseTax,
+          renewalCharge,
           oldVehicleTax: oldVehicleTax || 0,
           TotalTaxAmount: totalTaxAmount,
           vehicleType: electricBluebookData.vehicleType,
@@ -285,27 +206,12 @@ class ElectricPaymentController {
           meta: null,
         });
       } else if (daysLeft < 1) {
-        let fineAmount = 0;
-        if (daysLeft <= -365) {
-          fineAmount = 0.2 * baseTax;
-        } else if (daysLeft <= -45) {
-          fineAmount = 0.1 * baseTax;
-        } else if (daysLeft <= -1) {
-          fineAmount = 0.05 * baseTax;
-        }
-        totalTaxAmount = baseTax + renewalCharge + fineAmount;
-        if (vehicleAgeInYears >= 15) {
-          // 10% extra tax for old vehicles
-          oldVehicleTax = 0.1 * totalTaxAmount;
-          totalTaxAmount += oldVehicleTax;
-        }
-
         
         const ElectricTaxData = await ElectricTaxModel.create({
-          baseTax: baseTax,
-          renewalCharge: renewalCharge,
-          fineAmount: fineAmount,
-          oldVehicleTax: oldVehicleTax,
+          baseTax,
+          renewalCharge,
+          fineAmount,
+          oldVehicleTax,
           TotalTaxAmount: totalTaxAmount,
           vehicleType: electricBluebookData.vehicleType,
           batteryCapacity: electricBluebookData.vehicleBatteryCapacity,

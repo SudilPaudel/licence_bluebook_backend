@@ -6,6 +6,7 @@ const PaymentModel = require("./payment.model");
 const axios = require("axios");
 const mailSvc = require("../../services/mail.service");
 const crypto = require("crypto");
+const { calculatePetrolTax } = require("../../utils/algorithm");
 
 require("dotenv").config();
 
@@ -85,63 +86,10 @@ class PaymentController {
         return;
       }
 
-      //Days left logic
-      const now = new Date(); // current date
-      const taxExpireDate = new Date(bluebookData.taxExpireDate); // parse the ISO string
-
-      const diffInMs = taxExpireDate.getTime() - now.getTime(); // time difference in ms
-      const daysLeft = Math.ceil(diffInMs / (1000 * 60 * 60 * 24)); // convert ms to days
-
-      let baseTax;
-      let renewalCharge;
-      //for bike
-      if (bluebookData.vehicleType === "Motorcycle") {
-        renewalCharge = 300;
-        if (bluebookData.vehicleEngineCC <= 125) {
-          baseTax = 3000;
-        } else if (bluebookData.vehicleEngineCC <= 150) {
-          baseTax = 5000;
-        } else if (bluebookData.vehicleEngineCC <= 225) {
-          baseTax = 6500;
-        } else if (bluebookData.vehicleEngineCC <= 400) {
-          baseTax = 12000;
-        } else if (bluebookData.vehicleEngineCC <= 650) {
-          baseTax = 25000;
-        } else {
-          baseTax = 3600;
-        }
-      }
-      //for car
-      else if (bluebookData.vehicleType === "Car") {
-        renewalCharge = 500;
-        if (bluebookData.vehicleEngineCC <= 1000) {
-          baseTax = 22000;
-        } else if (bluebookData.vehicleEngineCC <= 1500) {
-          baseTax = 25000;
-        } else if (bluebookData.vehicleEngineCC <= 2000) {
-          baseTax = 27000;
-        } else if (bluebookData.vehicleEngineCC <= 2500) {
-          baseTax = 37000;
-        } else if (bluebookData.vehicleEngineCC <= 3000) {
-          baseTax = 50000;
-        } else if (bluebookData.vehicleEngineCC <= 3500) {
-          baseTax = 65000;
-        } else if (bluebookData.vehicleEngineCC >= 3501) {
-          baseTax = 70000;
-        }
-      }
+      const { paymentMethod } = req.body;
+      const { baseTax, renewalCharge, fineAmount, oldVehicleTax, totalTaxAmount, daysLeft } = calculatePetrolTax(bluebookData);
 
       let data;
-      let totalTaxAmount = 0;
-
-      const today = new Date();
-      const registrationDate = new Date(bluebookData.VehicleRegistrationDate);
-
-      // Calculate year difference
-      const vehicleAgeInYears =
-        today.getFullYear() - registrationDate.getFullYear();
-      let oldVehicleTax = 0;
-      const { paymentMethod } = req.body;
 
       // Check for existing pending payments for this user and bluebook
       const existingPayment = await PaymentModel.findOne({
@@ -175,17 +123,10 @@ class PaymentController {
       paymentDataObj.otp = otp;
       paymentDataObj.otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
 
-      //Conditions for the tax
       if (daysLeft < 30 && daysLeft > 1) {
-        totalTaxAmount = baseTax + renewalCharge;
-        if (vehicleAgeInYears >= 15) {
-          // 10% extra tax for old vehicles
-          oldVehicleTax = 0.1 * totalTaxAmount;
-          totalTaxAmount += oldVehicleTax;
-        }
         const TaxData = await TaxModel.create({
-          baseTax: baseTax,
-          renewalCharge: renewalCharge,
+          baseTax,
+          renewalCharge,
           oldVehicleTax: oldVehicleTax || 0,
           TotalTaxAmount: totalTaxAmount,
         });
@@ -281,25 +222,11 @@ class PaymentController {
           meta: null,
         });
       } else if (daysLeft < 1) {
-        let fineAmount = 0;
-        if (daysLeft <= -365) {
-          fineAmount = 0.2 * baseTax;
-        } else if (daysLeft <= -45) {
-          fineAmount = 0.1 * baseTax;
-        } else if (daysLeft <= -1) {
-          fineAmount = 0.05 * baseTax;
-        }
-        totalTaxAmount = baseTax + renewalCharge + fineAmount;
-        if (vehicleAgeInYears >= 15) {
-          // 10% extra tax for old vehicles
-          oldVehicleTax = 0.1 * totalTaxAmount;
-          totalTaxAmount += oldVehicleTax;
-        }
         const TaxData = await TaxModel.create({
-          baseTax: baseTax,
-          renewalCharge: renewalCharge,
-          fineAmount: fineAmount,
-          oldVehicleTax: oldVehicleTax,
+          baseTax,
+          renewalCharge,
+          fineAmount,
+          oldVehicleTax,
           TotalTaxAmount: totalTaxAmount,
         });
 
