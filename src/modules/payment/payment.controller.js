@@ -7,6 +7,7 @@ const axios = require("axios");
 const mailSvc = require("../../services/mail.service");
 const crypto = require("crypto");
 const { calculatePetrolTax } = require("../../utils/algorithm");
+const { buildPaymentOtpEmail } = require("../../utils/emailTemplates");
 
 require("dotenv").config();
 
@@ -200,7 +201,12 @@ class PaymentController {
             await mailSvc.sendEmail(
               req.authUser.email,
               "Your OTP for Bluebook Payment",
-              `<p>Your OTP for confirming the payment is: <b>${otp}</b></p><p>This OTP is valid for 5 minutes.</p>`
+              buildPaymentOtpEmail({
+                userName: req.authUser.name,
+                otp,
+                validMinutes: 5,
+                vehicleCategory: "petrol",
+              })
             );
           } catch (err) {
             console.error("Failed to send OTP email:", err);
@@ -291,7 +297,12 @@ class PaymentController {
             await mailSvc.sendEmail(
               req.authUser.email,
               "Your OTP for Bluebook Payment",
-              `<p>Your OTP for confirming the payment is: <b>${otp}</b></p><p>This OTP is valid for 5 minutes.</p>`
+              buildPaymentOtpEmail({
+                userName: req.authUser.name,
+                otp,
+                validMinutes: 5,
+                vehicleCategory: "petrol",
+              })
             );
           } catch (err) {
             console.error("Failed to send OTP email:", err);

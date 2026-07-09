@@ -9,6 +9,7 @@ const electricBluebookRoute = require('express').Router()
 
 electricBluebookRoute.post('/', bodyValidator(electricBluebookCreateDTO), auth, electricBluebookCtrl.createBluebook);
 electricBluebookRoute.get('/my-bluebooks', auth, electricBluebookCtrl.getMyBluebook)
+electricBluebookRoute.patch('/:id/reminder-preference', auth, electricBluebookCtrl.updateReminderPreference)
 
 // Download route must come before the general :id route
 electricBluebookRoute.get('/:id/download', auth, electricBluebookCtrl.downloadBluebook )

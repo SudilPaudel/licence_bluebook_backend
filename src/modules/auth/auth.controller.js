@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { citizenshipNoSchema } = require('./auth.dto');
+const { buildAccountVerificationEmail } = require('../../utils/emailTemplates');
 
 class AuthController {
     // Handles user registration, generates OTP, sends verification email, and returns registration info.
@@ -27,17 +28,11 @@ class AuthController {
                 await mailSvc.sendEmail(
                     registeredData.email,
                     "Email Verification OTP - Bluebook Renewal System",
-                    `Dear ${registeredData.name}, <br />
-                    <p>Thank you for registering on Bluebook Renewal System!</p><br/>
-                    <p>Your verification OTP is: <strong style="font-size: 24px; color: #007bff;">${emailOtp}</strong></p><br/>
-                    <p>This OTP is valid for 10 minutes.</p><br/>
-                    <p>Please enter this OTP to verify your email address and activate your account.</p><br/>
-                <p>If you did not register, please ignore this email.</p><br/>
-                <p>Thank you!</p>
-                    <p>Regards,</p>
-                    <p>Bluebook Renewal System Team</p>
-                    <p><small>Please do not reply to this email</small></p>
-                    `
+                    buildAccountVerificationEmail({
+                        userName: registeredData.name,
+                        otp: emailOtp,
+                        validMinutes: 10
+                    })
                 );
                 console.log(`Sent OTP ${emailOtp} to ${registeredData.email}`);
                 res.json({
@@ -168,17 +163,12 @@ class AuthController {
                 await mailSvc.sendEmail(
                     user.email,
                     "New Email Verification OTP - Bluebook Renewal System",
-                    `Dear ${user.name}, <br />
-                    <p>You requested a new verification OTP.</p><br/>
-                    <p>Your new verification OTP is: <strong style="font-size: 24px; color: #007bff;">${newOtp}</strong></p><br/>
-                    <p>This OTP is valid for 10 minutes.</p><br/>
-                    <p>Please enter this OTP to verify your email address and activate your account.</p><br/>
-                    <p>If you did not request this, please ignore this email.</p><br/>
-                    <p>Thank you!</p>
-                    <p>Regards,</p>
-                    <p>Bluebook Renewal System Team</p>
-                    <p><small>Please do not reply to this email</small></p>
-                    `
+                    buildAccountVerificationEmail({
+                        userName: user.name,
+                        otp: newOtp,
+                        validMinutes: 10,
+                        isResend: true
+                    })
                 );
 
                 res.json({
@@ -821,7 +811,12 @@ class AuthController {
                 await mailSvc.sendEmail(
                     newUser.email,
                     "Admin Email Verification OTP - Bluebook Renewal System",
-                    `Dear ${newUser.name}, <br />\n<p>You have been registered as an admin on Bluebook Renewal System!</p><br/>\n<p>Your verification OTP is: <strong style=\"font-size: 24px; color: #007bff;\">${emailOtp}</strong></p><br/>\n<p>This OTP is valid for 10 minutes.</p><br/>\n<p>Please enter this OTP to verify your email address and activate your admin account.</p><br/>\n<p>If you did not request this, please ignore this email.</p><br/>\n<p>Thank you!</p>\n<p>Regards,</p>\n<p>Bluebook Renewal System Team</p>\n<p><small>Please do not reply to this email</small></p>`
+                    buildAccountVerificationEmail({
+                        userName: newUser.name,
+                        otp: emailOtp,
+                        validMinutes: 10,
+                        isAdmin: true
+                    })
                 );
                 return res.status(201).json({
                     result: {

@@ -1,6 +1,6 @@
 const authSvc = require("../auth/auth.service");
 const bluebookSvc = require("./bluebook.service");
-const PDFDocument = require('pdfkit');
+const { createPdfDoc, renderBluebookCertificate } = require('../../utils/pdfTemplates');
 
 require("dotenv").config();
 
@@ -165,252 +165,26 @@ class BluebookController {
                 });
             }
 
-            // Create PDF document with modern settings
-            const doc = new PDFDocument({
-                size: 'A4',
-                margin: 40,
+            const doc = createPdfDoc({
                 info: {
-                    Title: 'Bluebook Certificate - Bluebook Renewal System',
+                    Title: 'Vehicle Registration Certificate - Bluebook',
                     Author: 'Department of Transport Management',
-                    Subject: 'Vehicle Registration Certificate',
-                    Keywords: 'bluebook, vehicle, registration, certificate',
-                    CreationDate: new Date()
-                }
+                    Subject: 'Motor Vehicle Registration Certificate',
+                    Keywords: 'bluebook, vehicle, registration, certificate, nepal',
+                    CreationDate: new Date(),
+                },
             });
 
-            // Set response headers
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename="bluebook-${bluebookData.vehicleRegNo}.pdf"`);
 
-            // Pipe PDF to response
             doc.pipe(res);
-
-            // Add modern header
-            this.addBluebookHeader(doc);
-
-            // Add certificate metadata
-            this.addCertificateMetadata(doc, bluebookData);
-
-            // Add vehicle information section
-            this.addVehicleInformationSection(doc, bluebookData);
-
-            // Add owner information section
-            this.addOwnerInformationSection(doc, bluebookData);
-
-            // Add tax information section
-            this.addTaxInformationSection(doc, bluebookData);
-
-            // Add certificate footer
-            this.addCertificateFooter(doc);
-
-            // Finalize PDF
+            renderBluebookCertificate(doc, bluebookData, 'petrol');
             doc.end();
 
         } catch (exception) {
             next(exception);
         }
-    }
-
-    // Adds modern header to bluebook certificate
-    addBluebookHeader = (doc) => {
-        // Header background
-        doc.rect(0, 0, doc.page.width, 100)
-           .fill('#1e40af')
-           .moveDown();
-
-        // Title
-        doc.fontSize(32)
-           .font('Helvetica-Bold')
-           .fill('#ffffff')
-           .text('BLUEBOOK CERTIFICATE', { align: 'center' })
-           .moveDown(0.5);
-
-        // Subtitle
-        doc.fontSize(16)
-           .font('Helvetica')
-           .fill('#e0e7ff')
-           .text('Government of Nepal', { align: 'center' })
-           .text('Department of Transport Management', { align: 'center' })
-           .moveDown(2);
-
-        // Reset fill color
-        doc.fill('#000000');
-    }
-
-    // Adds certificate metadata
-    addCertificateMetadata = (doc, bluebookData) => {
-        const currentDate = new Date();
-        
-        doc.fontSize(12)
-           .font('Helvetica')
-           .text(`Certificate ID: ${bluebookData._id}`, { align: 'left' })
-           .text(`Generated On: ${currentDate.toLocaleDateString('en-US', { 
-               year: 'numeric', 
-               month: 'long', 
-               day: 'numeric',
-               hour: '2-digit',
-               minute: '2-digit'
-           })}`, { align: 'left' })
-           .text(`Status: ${bluebookData.status.toUpperCase()}`, { align: 'left' })
-           .moveDown(2);
-
-        // Add separator line
-        doc.moveTo(40, doc.y)
-           .lineTo(doc.page.width - 40, doc.y)
-           .stroke()
-           .moveDown(2);
-    }
-
-    // Adds vehicle information section
-    addVehicleInformationSection = (doc, bluebookData) => {
-        doc.fontSize(18)
-           .font('Helvetica-Bold')
-           .text('🚗 Vehicle Information', { align: 'left' })
-           .moveDown(1);
-
-        const tableTop = doc.y;
-        const tableLeft = 40;
-        const tableWidth = doc.page.width - 80;
-
-        // Vehicle details
-        const vehicleDetails = [
-            ['Registration Number', bluebookData.vehicleRegNo || 'N/A'],
-            ['Vehicle Type', bluebookData.vehicleType || 'N/A'],
-            ['Vehicle Model', bluebookData.vehicleModel || 'N/A'],
-            ['Manufacture Year', bluebookData.manufactureYear ? bluebookData.manufactureYear.toString() : 'N/A'],
-            ['Vehicle Number', bluebookData.vehicleNumber || 'N/A'],
-            ['Chassis Number', bluebookData.chasisNumber || 'N/A'],
-            ['Vehicle Color', bluebookData.vehicleColor || 'N/A'],
-            ['Engine CC', bluebookData.vehicleEngineCC ? `${bluebookData.vehicleEngineCC} cc` : 'N/A']
-        ];
-
-        // Draw vehicle details table
-        this.drawCertificateTable(doc, tableTop, tableLeft, tableWidth, vehicleDetails, '#3b82f6');
-
-        doc.y = tableTop + (vehicleDetails.length * 30) + 20;
-        doc.moveDown(2);
-    }
-
-    // Adds owner information section
-    addOwnerInformationSection = (doc, bluebookData) => {
-        doc.fontSize(18)
-           .font('Helvetica-Bold')
-           .text('👤 Owner Information', { align: 'left' })
-           .moveDown(1);
-
-        const tableTop = doc.y;
-        const tableLeft = 40;
-        const tableWidth = doc.page.width - 80;
-
-        // Owner details
-        const ownerDetails = [
-            ['Owner Name', bluebookData.vehicleOwnerName || 'N/A'],
-            ['Registration Date', bluebookData.VehicleRegistrationDate ? new Date(bluebookData.VehicleRegistrationDate).toLocaleDateString() : 'N/A']
-        ];
-
-        // Draw owner details table
-        this.drawCertificateTable(doc, tableTop, tableLeft, tableWidth, ownerDetails, '#10b981');
-
-        doc.y = tableTop + (ownerDetails.length * 30) + 20;
-        doc.moveDown(2);
-    }
-
-    // Adds tax information section
-    addTaxInformationSection = (doc, bluebookData) => {
-        doc.fontSize(18)
-           .font('Helvetica-Bold')
-           .text('💰 Tax Information', { align: 'left' })
-           .moveDown(1);
-
-        const tableTop = doc.y;
-        const tableLeft = 40;
-        const tableWidth = doc.page.width - 80;
-
-        // Tax details
-        const taxDetails = [
-            ['Tax Pay Date', bluebookData.taxPayDate ? new Date(bluebookData.taxPayDate).toLocaleDateString() : 'N/A'],
-            ['Tax Expire Date', bluebookData.taxExpireDate ? new Date(bluebookData.taxExpireDate).toLocaleDateString() : 'N/A'],
-            ['Certificate Status', bluebookData.status.toUpperCase()]
-        ];
-
-        // Draw tax details table
-        this.drawCertificateTable(doc, tableTop, tableLeft, tableWidth, taxDetails, '#f59e0b');
-
-        doc.y = tableTop + (taxDetails.length * 30) + 20;
-        doc.moveDown(2);
-    }
-
-    // Draws certificate table
-    drawCertificateTable = (doc, y, x, width, data, color) => {
-        const rowHeight = 30;
-        let currentY = y;
-
-        data.forEach((row, index) => {
-            // Row background (alternating)
-            if (index % 2 === 0) {
-                doc.rect(x, currentY, width, rowHeight)
-                   .fill('#f8fafc');
-            }
-
-            // Label (left column)
-            doc.fontSize(10)
-               .font('Helvetica-Bold')
-               .fill('#374151')
-               .text(row[0], x + 10, currentY + 8, { width: width * 0.4 - 20 });
-
-            // Value (right column)
-            doc.fontSize(10)
-               .font('Helvetica')
-               .fill('#1f2937')
-               .text(row[1], x + width * 0.4 + 10, currentY + 8, { width: width * 0.6 - 20 });
-
-            // Row separator
-            doc.moveTo(x, currentY + rowHeight)
-               .lineTo(x + width, currentY + rowHeight)
-               .stroke('#e2e8f0');
-
-            currentY += rowHeight;
-        });
-
-        // Table border
-        doc.rect(x, y, width, data.length * rowHeight)
-           .stroke(color)
-           .opacity(0.5);
-    }
-
-    // Adds certificate footer
-    addCertificateFooter = (doc) => {
-        doc.moveDown(2);
-        
-        // Separator line
-        doc.moveTo(40, doc.y)
-           .lineTo(doc.page.width - 40, doc.y)
-           .stroke()
-           .moveDown(1);
-
-        // Official statement
-        doc.fontSize(12)
-           .font('Helvetica-Bold')
-           .text('This is an official certificate from the Department of Transport Management.', { align: 'center' })
-           .moveDown(0.5);
-
-        doc.fontSize(10)
-           .font('Helvetica')
-           .text('This certificate serves as proof of vehicle registration and tax payment.', { align: 'center' })
-           .text('Please keep this certificate for your records.', { align: 'center' })
-           .moveDown(1);
-
-        // Contact information
-        doc.fontSize(9)
-           .font('Helvetica')
-           .text('For any queries, please contact the Department of Transport Management.', { align: 'center' })
-           .text('Email: info@transport.gov.np | Phone: +977-1-4XXXXXX', { align: 'center' })
-           .moveDown(1);
-
-        // Page number
-        doc.fontSize(8)
-           .font('Helvetica')
-           .text('Page 1 of 1', doc.page.width - 80, doc.page.height - 30, { align: 'right' });
     }
 
     // Admin methods
@@ -493,6 +267,41 @@ class BluebookController {
             res.json({
                 result: updatedResult,
                 message: "Bluebook rejected successfully."
+            });
+        } catch (exception) {
+            next(exception);
+        }
+    }
+
+    updateReminderPreference = async (req, res, next) => {
+        try {
+            const id = req.params.id;
+            const { sendExpiryReminder } = req.body;
+
+            if (typeof sendExpiryReminder !== 'boolean') {
+                throw { code: 400, message: 'sendExpiryReminder must be a boolean value' };
+            }
+
+            const bluebook = await bluebookSvc.findOneBluebook({ _id: id });
+            if (!bluebook) {
+                throw { code: 404, message: 'Bluebook not found' };
+            }
+
+            if (bluebook.createdBy.toString() !== req.authUser._id.toString()) {
+                throw { code: 403, message: "You don't have permission to update this bluebook" };
+            }
+
+            const updatedBluebook = await bluebookSvc.updateBluebook(
+                { sendExpiryReminder },
+                id
+            );
+
+            res.json({
+                result: updatedBluebook,
+                message: sendExpiryReminder
+                    ? 'Expiry reminder enabled successfully'
+                    : 'Expiry reminder disabled successfully',
+                meta: null,
             });
         } catch (exception) {
             next(exception);

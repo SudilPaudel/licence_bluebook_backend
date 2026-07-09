@@ -57,6 +57,14 @@ const BluebookSchema = new mongoose.Schema({
         enum: ["pending","verified","rejected"],
         default: "pending"
     },
+    sendExpiryReminder: {
+        type: Boolean,
+        default: false,
+    },
+    lastReminderSentForExpiry: {
+        type: Date,
+        default: null,
+    },
    
     createdBy:{
         type: mongoose.Types.ObjectId,

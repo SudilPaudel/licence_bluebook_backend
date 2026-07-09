@@ -10,6 +10,7 @@ const blueBookRoute = require('express').Router();
 // Allow regular users to create bluebooks
 blueBookRoute.post('/', bodyValidator(bluebookCreateDTO), auth, bluebookCtrl.createBluebook);
 blueBookRoute.get('/my-bluebooks', auth, bluebookCtrl.getMyBluebook)
+blueBookRoute.patch('/:id/reminder-preference', auth, bluebookCtrl.updateReminderPreference)
 
 // Download route must come before the general :id route
 blueBookRoute.get('/:id/download', auth, bluebookCtrl.downloadBluebook )
