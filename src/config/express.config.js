@@ -64,6 +64,20 @@ app.use((error, req, res, next) => {
   let message = error?.message || "Internal Server Error";
   let data = error.data || null;
 
+  if (error?.name === 'MulterError') {
+    const uploadLimitMb = Number(process.env.UPLOAD_MAX_FILE_SIZE_MB) || 10;
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      statusCode = 413;
+      message = `Uploaded file is too large. Maximum allowed size is ${uploadLimitMb}MB per file.`;
+    } else if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      statusCode = 400;
+      message = 'Unexpected file field in upload request.';
+    } else {
+      statusCode = 400;
+      message = error.message || 'File upload failed.';
+    }
+  }
+
   if (error instanceof Joi.ValidationError) {
     statusCode = 422;
     message = "Validation Failed";

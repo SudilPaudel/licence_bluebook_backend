@@ -216,6 +216,7 @@ The backend is hosted on a **VPS server** for production use.
 -   Production environment variables are configured securely on the server.
 -   Static/public assets (uploads, images) are served from the backend `public/` directory.
 -   The VPS setup is used as the live deployment target for all production updates.
+-   **Nginx upload limit:** KYC uploads include two citizenship photos. Set `client_max_body_size 20M;` in the nginx server block that proxies to this API (see `deploy/nginx-upload-limit.conf`). Without this, nginx returns `413 Request Entity Too Large` before the request reaches Node.
 
 ## CI/CD Pipeline
 

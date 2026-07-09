@@ -1,6 +1,10 @@
 const multer = require('multer')
 const fs = require('fs')
 const { generateRandomString } = require('../utils/helpers')
+
+const maxFileSizeMb = Number(process.env.UPLOAD_MAX_FILE_SIZE_MB) || 10
+const maxFileSizeBytes = maxFileSizeMb * 1024 * 1024
+
 const setPath = (path)=>{
     return (req, res, next) => {
         req.uploadDir = path
@@ -39,7 +43,7 @@ const uploader = multer({
     storage: myStorage,
     fileFilter: imageFilter,
     limits:{
-        fileSize: 2 * 1024 * 1024
+        fileSize: maxFileSizeBytes
     }
 })
 
