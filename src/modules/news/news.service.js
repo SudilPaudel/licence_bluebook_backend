@@ -168,6 +168,21 @@ class NewsService {
             throw exception;
         }
     }
+
+    // Retrieves a single active news article for public display.
+    getActiveNewsById = async (newsId) => {
+        try {
+            const news = await NewsModel.findOne({
+                _id: newsId,
+                status: 'active',
+                publishedAt: { $lte: new Date() }
+            }).populate('createdBy', 'name');
+
+            return news;
+        } catch (exception) {
+            throw exception;
+        }
+    }
 }
 
 module.exports = new NewsService();

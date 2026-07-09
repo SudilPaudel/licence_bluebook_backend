@@ -9,6 +9,7 @@ const { uploader, setPath } = require('../../middleware/uploader.middleware');
 
 // Public routes
 router.get('/public/active', newsCtrl.getActiveNews);
+router.get('/public/:id', newsCtrl.getActiveNewsById);
 
 // Admin routes (require authentication and admin role)
 router.use(auth);

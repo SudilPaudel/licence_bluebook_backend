@@ -144,6 +144,26 @@ class NewsController {
         }
     };
 
+    // Get single active news article for public display
+    getActiveNewsById = async (req, res, next) => {
+        try {
+            const { id } = req.params;
+            const news = await newsSvc.getActiveNewsById(id);
+
+            if (!news) {
+                throw { code: 404, message: "News article not found" };
+            }
+
+            res.json({
+                result: news,
+                message: "News article retrieved successfully",
+                meta: null
+            });
+        } catch (exception) {
+            next(exception);
+        }
+    };
+
     // Update news status
     // Updates the status (active, inactive, draft) of a news article by ID.
     updateNewsStatus = async (req, res, next) => {
