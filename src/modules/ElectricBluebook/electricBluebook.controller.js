@@ -166,6 +166,13 @@ class ElectricBluebookController {
                 });
             }
 
+            if (bluebookData.status !== 'verified') {
+                return res.status(403).json({
+                    message: "Bluebook must be verified before it can be downloaded",
+                    meta: null
+                });
+            }
+
             const doc = createPdfDoc({
                 info: {
                     Title: 'Electric Vehicle Registration Certificate - Bluebook',
