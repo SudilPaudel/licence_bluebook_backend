@@ -59,12 +59,14 @@ class ElectricBluebookService {
                 const { page, limit } = pagination;
                 const skip = (page - 1) * limit;
                 const bluebooks = await electricBluebookModel.find(filter)
+                    .sort({ createdAt: -1 })
                     .skip(skip)
                     .limit(limit);
                 const count = await electricBluebookModel.countDocuments(filter);
                 return { bluebooks, count };
             } else {
-                const bluebooks = await electricBluebookModel.find(filter);
+                const bluebooks = await electricBluebookModel.find(filter)
+                    .sort({ createdAt: -1 });
                 return { bluebooks, count: bluebooks.length };
             }
         } catch (error) {

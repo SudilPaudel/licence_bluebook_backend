@@ -172,16 +172,34 @@ class AdminController {
     // Retrieves all payment records, populates user info, and returns a summary with meta statistics.
     getAllPayments = async (req, res, next) => {
         try {
-            const payments = await PaymentModel.find({}).populate('userId', 'name email');
-            
-            const formattedPayments = payments.map(payment => ({
-                _id: payment._id,
-                transactionId: payment.transactionId || 'N/A',
-                userName: payment.userId ? payment.userId.name : 'Unknown',
-                amount: payment.amount || 0,
-                status: payment.status || 'pending',
-                createdAt: payment.createdAt
-            }));
+            const populateUser = [
+                { path: 'userId', select: 'name email' },
+                { path: 'createdBy', select: 'name email' }
+            ];
+            const [regularPayments, electricPayments] = await Promise.all([
+                PaymentModel.find({}).populate(populateUser).sort({ createdAt: -1 }),
+                ElectricPaymentModel.find({}).populate(populateUser).sort({ createdAt: -1 })
+            ]);
+
+            const formatPayment = (payment, isElectric) => {
+                const paymentUser = payment.userId || payment.createdBy;
+
+                return {
+                    _id: payment._id,
+                    transactionId: payment.transactionId || 'N/A',
+                    userName: paymentUser?.name || 'Unknown',
+                    userEmail: paymentUser?.email || '',
+                    amount: payment.amount || 0,
+                    status: payment.status || 'pending',
+                    createdAt: payment.createdAt,
+                    isElectric
+                };
+            };
+
+            const formattedPayments = [
+                ...regularPayments.map(payment => formatPayment(payment, false)),
+                ...electricPayments.map(payment => formatPayment(payment, true))
+            ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
             res.json({
                 result: formattedPayments,
